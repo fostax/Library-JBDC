@@ -92,6 +92,8 @@ public class LibraryModel {
                 }
                 result.append("\n");
             }
+            s.close();
+            rs.close();
         } catch (SQLException sqlE) {
             System.out.println(sqlE.getMessage()); //TODO make a popup
         }
@@ -100,11 +102,55 @@ public class LibraryModel {
     }
 
     public String showLoanedBooks() {
+
         return "Show Loaned Books Stub";
     }
 
     public String showAuthor(int authorID) {
-        return "Show Author Stub";
+        StringBuilder result = new StringBuilder("Show Author:\n");
+        try {
+            String stmt = "SELECT a.authorid, a.name, a.surname, b.isbn, b.title, " +
+                            "(SELECT COUNT(*) FROM book_author ba2 WHERE ba2.authorid = a.authorid) AS num_books" +
+                            " FROM author a" +
+                            " NATURAL JOIN book_author ba" +
+                            " NATURAL JOIN book b" +
+                            " WHERE a.authorid = ?;";
+
+            PreparedStatement ps = this.conn.prepareStatement(stmt);
+            ps.setInt(1, authorID);
+            ResultSet rs = ps.executeQuery();
+
+            if (!rs.next()) {
+                result.append("\t").append("No such author ID: ").append(authorID);
+            } else {
+                boolean first = true;
+                do {
+                    if (first) {
+                        result.append("\t")
+                                .append(rs.getInt("authorid")).append(" - ")
+                                .append(rs.getString("name"))
+                                .append(rs.getString("surname"))
+                                .append("\n");
+
+                        if (rs.getInt("num_books") == 1) {
+                            result.append("\tBook written:\n");
+                        } else {
+                            result.append("\tBooks written:\n");
+                        }
+                        first = false;
+                    }
+                    result.append("\t\t").append(rs.getInt("isbn")).append(" - ")
+                            .append(rs.getString("title"))
+                            .append("\n");
+                } while (rs.next());
+            }
+            ps.close();
+            rs.close();
+        } catch (SQLException sqlE){
+            sqlE.printStackTrace();
+            System.out.println(sqlE.getMessage()); //TODO
+        }
+        return result.toString();
     }
 
     public String showAllAuthors() {
