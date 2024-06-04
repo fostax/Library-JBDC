@@ -346,87 +346,84 @@ public class LibraryModel {
 
             // Check if customer exists and lock record with FOR UPDATE
             checkCustomerStmt.setInt(1, customerID);
-            String f_name = "";
-            String l_name = "";
             try (ResultSet checkCustomerResult = checkCustomerStmt.executeQuery()) {
                 if (!checkCustomerResult.next()) {
                     this.conn.rollback();
                     return result.append("\tNo such Customer ID: ").append(customerID).toString();
                 }
 
-                f_name = checkCustomerResult.getString("f_name").strip();
-                l_name = checkCustomerResult.getString("l_name").strip();
-            }
+                String f_name = checkCustomerResult.getString("f_name").strip();
+                String l_name = checkCustomerResult.getString("l_name").strip();
 
-            String lockBookQuery = "SELECT * FROM book WHERE isbn = ? AND numleft > 0 FOR UPDATE";
-            try (PreparedStatement lockBookStmt = this.conn.prepareStatement(lockBookQuery)) {
-                // Check if book exists
-                lockBookStmt.setInt(1, isbn);
-                try (ResultSet lockBookResult = lockBookStmt.executeQuery()) {
-                    if (!lockBookResult.next()) {
-                        this.conn.rollback();
-                        return result.append("\tBook not available: ").append(isbn).toString();
+
+                String lockBookQuery = "SELECT * FROM book WHERE isbn = ? AND numleft > 0 FOR UPDATE";
+                try (PreparedStatement lockBookStmt = this.conn.prepareStatement(lockBookQuery)) {
+                    // Check if book exists
+                    lockBookStmt.setInt(1, isbn);
+                    try (ResultSet lockBookResult = lockBookStmt.executeQuery()) {
+                        if (!lockBookResult.next()) {
+                            this.conn.rollback();
+                            return result.append("\tBook not available: ").append(isbn).toString();
+                        }
                     }
                 }
-            }
-            // Insert a new record into cust_book table
-            Date dueDate = new Date(new GregorianCalendar(year, month, day).getTimeInMillis());
-            String checkCustBookSQL = "SELECT * FROM cust_book WHERE customerid = ? AND isbn = ?";
-            try (PreparedStatement checkCustBookStmt = this.conn.prepareStatement(checkCustBookSQL)) {
-                checkCustBookStmt.setInt(1, customerID);
-                checkCustBookStmt.setInt(2, isbn);
+                // Insert a new record into cust_book table
+                Date dueDate = new Date(new GregorianCalendar(year, month, day).getTimeInMillis());
+                String checkCustBookSQL = "SELECT * FROM cust_book WHERE customerid = ? AND isbn = ?";
+                try (PreparedStatement checkCustBookStmt = this.conn.prepareStatement(checkCustBookSQL)) {
+                    checkCustBookStmt.setInt(1, customerID);
+                    checkCustBookStmt.setInt(2, isbn);
 
-                try (ResultSet checkCustBookResult = checkCustBookStmt.executeQuery()) {
-                    if (checkCustBookResult.next()) {
-                        this.conn.rollback();
-                        return result.append("\tCustomer ").append(customerID).append(" (").append(f_name)
-                                .append(" ").append(l_name).append(") already has Book ").append(isbn).toString();
+                    try (ResultSet checkCustBookResult = checkCustBookStmt.executeQuery()) {
+                        if (checkCustBookResult.next()) {
+                            this.conn.rollback();
+                            return result.append("\tCustomer ").append(customerID).append(" already has Book ").append(isbn).toString();
+                        }
+                    }
+
+                    String insertCustBookQuery = "INSERT INTO cust_book (isbn, duedate, customerid) VALUES (?, ?, ?)";
+                    try (PreparedStatement insertCustBookStmt = this.conn.prepareStatement(insertCustBookQuery)) {
+                        insertCustBookStmt.setInt(1, isbn);
+                        insertCustBookStmt.setDate(2, dueDate);
+                        insertCustBookStmt.setInt(3, customerID);
+                        int numEntries = insertCustBookStmt.executeUpdate();
+                        if (numEntries == 0) {
+                            this.conn.rollback();
+                            return result.append("\tError loaning book ").append(isbn).append(" to Customer ").append(customerID).toString();
+                        }
                     }
                 }
 
-                String insertCustBookQuery = "INSERT INTO cust_book (isbn, duedate, customerid) VALUES (?, ?, ?)";
-                try (PreparedStatement insertCustBookStmt = this.conn.prepareStatement(insertCustBookQuery)) {
-                    insertCustBookStmt.setInt(1, isbn);
-                    insertCustBookStmt.setDate(2, dueDate);
-                    insertCustBookStmt.setInt(3, customerID);
-                    int numEntries = insertCustBookStmt.executeUpdate();
+                // Interaction popup between steps 3 and 4
+                JOptionPane.showMessageDialog(dialogParent, "Ready to update. Click OK to continue", "Tuple/s Locked", JOptionPane.INFORMATION_MESSAGE);
+
+                // Update book table
+                String updateBookQuery = "UPDATE book SET numleft = numleft - 1 WHERE isbn = ?";
+                try (PreparedStatement updateBookStmt = this.conn.prepareStatement(updateBookQuery)) {
+                    updateBookStmt.setInt(1, isbn);
+                    int numEntries = updateBookStmt.executeUpdate();
                     if (numEntries == 0) {
                         this.conn.rollback();
-                        return result.append("\tError loaning book ").append(isbn).append(" to Customer ").append(customerID).toString();
+                        return result.append("\tBook Update Failed: ").toString();
+                    }
+                }
+
+                try (PreparedStatement bookNameStmt = this.conn.prepareStatement(bookNameSQL)) {
+                    bookNameStmt.setInt(1, isbn);
+                    try (ResultSet bookNameResult = bookNameStmt.executeQuery()) {
+                        if (!bookNameResult.next()) {
+                            this.conn.rollback();
+                            return result.append("Failed retrieving title for ISBN: ").append(isbn).toString();
+                        }
+                        result.append("Borrow Book:\n")
+                                .append("\tBook: ").append(isbn).append(" (")
+                                .append(bookNameResult.getString("title").strip()).append(")\n")
+                                .append("\tLoaned to: ").append(customerID)
+                                .append(" (").append(f_name).append(" ").append(l_name).append(")\n")
+                                .append("\tDue Date: ").append(dueDate);
                     }
                 }
             }
-
-            // Interaction popup between steps 3 and 4
-            JOptionPane.showMessageDialog(dialogParent, "Ready to update. Click OK to continue", "Tuple/s Locked", JOptionPane.INFORMATION_MESSAGE);
-
-            // Update book table
-            String updateBookQuery = "UPDATE book SET numleft = numleft - 1 WHERE isbn = ?";
-            try (PreparedStatement updateBookStmt = this.conn.prepareStatement(updateBookQuery)) {
-                updateBookStmt.setInt(1, isbn);
-                int numEntries = updateBookStmt.executeUpdate();
-                if (numEntries == 0) {
-                    this.conn.rollback();
-                    return result.append("\tBook Update Failed: ").toString();
-                }
-            }
-
-            try (PreparedStatement bookNameStmt = this.conn.prepareStatement(bookNameSQL)) {
-                bookNameStmt.setInt(1, isbn);
-                try (ResultSet bookNameResult = bookNameStmt.executeQuery()) {
-                    if (!bookNameResult.next()) {
-                        this.conn.rollback();
-                        return result.append("Failed retrieving title for ISBN: ").append(isbn).toString();
-                    }
-                    result.append("Borrow Book:\n")
-                            .append("\tBook: ").append(isbn).append(" (")
-                            .append(bookNameResult.getString("title").strip()).append(")\n")
-                            .append("\tLoaned to: ").append(customerID)
-                            .append(" (").append(f_name).append(" ").append(l_name).append(")\n")
-                            .append("\tDue Date: ").append(dueDate);
-                }
-            }
-
             this.conn.commit();
         } catch (SQLException e) {
             try {
