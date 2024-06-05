@@ -24,6 +24,7 @@ public class LibraryModel {
             this.conn = DriverManager.getConnection(url, userid, password);
         } catch (SQLException | ClassNotFoundException e) {
             JOptionPane.showMessageDialog(dialogParent, e.getMessage(), "Connection Error", JOptionPane.INFORMATION_MESSAGE);
+            closeDBConnection();
         }
     }
 
@@ -539,7 +540,7 @@ public class LibraryModel {
                 JOptionPane.showMessageDialog(dialogParent, e.getMessage(), "Error Closing Connection", JOptionPane.INFORMATION_MESSAGE);
             }
         } else {
-            JOptionPane.showMessageDialog(dialogParent, "Connection does not exist.", "Connection Error", JOptionPane.INFORMATION_MESSAGE);
+            System.exit(0);
         }
     }
 
