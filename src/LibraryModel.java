@@ -23,7 +23,7 @@ public class LibraryModel {
             Class.forName("org.postgresql.Driver");
             this.conn = DriverManager.getConnection(url, userid, password);
         } catch (SQLException | ClassNotFoundException e) {
-            JOptionPane.showMessageDialog(dialogParent, e.getMessage(), "Connection Error", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(dialogParent, "Error connecting to database\n Message: " + e.getMessage(), "Connection Error", JOptionPane.INFORMATION_MESSAGE);
             closeDBConnection();
         }
     }
@@ -537,10 +537,8 @@ public class LibraryModel {
             try {
                 this.conn.close();
             } catch (SQLException e) {
-                JOptionPane.showMessageDialog(dialogParent, e.getMessage(), "Error Closing Connection", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(dialogParent, "Could not close connection.\n Message: " + e.getMessage(), "Error Closing Connection", JOptionPane.INFORMATION_MESSAGE);
             }
-        } else {
-            System.exit(0);
         }
     }
 
