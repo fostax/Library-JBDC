@@ -1,7 +1,7 @@
 /*
  * LibraryModel.java
- * Author:
- * Created on:
+ * Author: Ben Foster
+ * Created on: 24/05/2024
  */
 
 
