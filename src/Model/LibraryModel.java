@@ -1,9 +1,8 @@
-/*
- * LibraryModel.java
+package Model;/*
+ * Model.LibraryModel.java
  * Author: Ben Foster
  * Created on: 24/05/2024
  */
-
 
 import javax.swing.*;
 import java.sql.*;
@@ -16,12 +15,12 @@ public class LibraryModel {
     private Connection conn;
 
 
-    public LibraryModel(JFrame parent, String userid, String password) {
+    public LibraryModel(JFrame parent, String userid, String password, String url) {
         dialogParent = parent;
-        String url = "jdbc:postgresql://depot.ecs.vuw.ac.nz:5432/" + userid + "_jdbc";
+        String connectionString = url + userid + "_jdbc";
         try {
             Class.forName("org.postgresql.Driver");
-            this.conn = DriverManager.getConnection(url, userid, password);
+            this.conn = DriverManager.getConnection(connectionString, userid, password);
         } catch (SQLException | ClassNotFoundException e) {
             JOptionPane.showMessageDialog(dialogParent, "Error connecting to database\n Message: " + e.getMessage(), "Connection Error", JOptionPane.INFORMATION_MESSAGE);
             closeDBConnection();
